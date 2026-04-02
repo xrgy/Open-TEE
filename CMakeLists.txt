@@ -80,8 +80,6 @@ if(OPENTEE_ENABLE_LOGGING)
     add_compile_definitions(OT_LOGGING)
 endif()
 
-# Allow access to mbedtls private structure members (required for 3.6+)
-add_compile_definitions(MBEDTLS_ALLOW_PRIVATE_ACCESS)
 
 # ============================================================================
 # Find Dependencies
