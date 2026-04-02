@@ -171,31 +171,49 @@ include(FetchContent)
 find_package(mbedcrypto QUIET)
 
 if(NOT TARGET mbedcrypto)
-    message(STATUS "System mbedtls not found, will fetch and build from source")
+    set(MBEDTLS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/deps/mbedtls-src")
+    set(MBEDTLS_BINARY_DIR "${CMAKE_SOURCE_DIR}/deps/mbedtls-build")
     
-    FetchContent_Declare(
-        mbedtls
-        GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
-        GIT_TAG v3.6.2
-        GIT_SHALLOW TRUE
-        SOURCE_DIR "${CMAKE_SOURCE_DIR}/deps/mbedtls-src"
-    )
-    
-    # 配置 mbedtls 构建选项
-    set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-    set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
-    set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "" FORCE)
-    
-    FetchContent_MakeAvailable(mbedtls)
-    
-    # 创建兼容的导入目标
-    if(NOT TARGET MbedTLS::mbedcrypto)
-        add_library(MbedTLS::mbedcrypto ALIAS mbedcrypto)
+    # 如果源码和编译产物都已存在，直接复用预编译的静态库
+    if(EXISTS "${MBEDTLS_BINARY_DIR}/library/libmbedcrypto.a" AND
+       EXISTS "${MBEDTLS_SOURCE_DIR}/include/mbedtls/mbedtls_config.h")
+        message(STATUS "Using pre-built mbedtls from ${MBEDTLS_BINARY_DIR}")
+        add_library(mbedcrypto STATIC IMPORTED GLOBAL)
+        set_target_properties(mbedcrypto PROPERTIES
+            IMPORTED_LOCATION "${MBEDTLS_BINARY_DIR}/library/libmbedcrypto.a"
+            INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_SOURCE_DIR}/include"
+        )
+        if(NOT TARGET MbedTLS::mbedcrypto)
+            add_library(MbedTLS::mbedcrypto ALIAS mbedcrypto)
+        endif()
+    else()
+        message(STATUS "System mbedtls not found, will fetch and build from source")
+        
+        FetchContent_Declare(
+            mbedtls
+            GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+            GIT_TAG v3.6.2
+            GIT_SHALLOW TRUE
+            SOURCE_DIR "${MBEDTLS_SOURCE_DIR}"
+            BINARY_DIR "${MBEDTLS_BINARY_DIR}"
+        )
+        
+        # 配置 mbedtls 构建选项
+        set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+        set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+        set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
+        set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "" FORCE)
+        
+        FetchContent_MakeAvailable(mbedtls)
+        
+        # 创建兼容的导入目标
+        if(NOT TARGET MbedTLS::mbedcrypto)
+            add_library(MbedTLS::mbedcrypto ALIAS mbedcrypto)
+        endif()
+        
+        message(STATUS "mbedtls source dir: ${mbedtls_SOURCE_DIR}")
+        message(STATUS "mbedtls binary dir: ${mbedtls_BINARY_DIR}")
     endif()
-    
-    message(STATUS "mbedtls source dir: ${mbedtls_SOURCE_DIR}")
-    message(STATUS "mbedtls binary dir: ${mbedtls_BINARY_DIR}")
 else()
     message(STATUS "Using system mbedtls")
     if(NOT TARGET MbedTLS::mbedcrypto)
