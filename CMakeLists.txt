@@ -80,6 +80,9 @@ if(OPENTEE_ENABLE_LOGGING)
     add_compile_definitions(OT_LOGGING)
 endif()
 
+# Allow access to mbedtls private structure members (required for 3.6+)
+add_compile_definitions(MBEDTLS_ALLOW_PRIVATE_ACCESS)
+
 # ============================================================================
 # Find Dependencies
 # ============================================================================
@@ -160,21 +163,45 @@ endif()
 # Find FUSE (optional, for omnishare)
 pkg_check_modules(FUSE fuse)
 
-# Find mbedtls (for InternalApi crypto)
-block(SCOPE_FOR VARIABLES)
-    pkg_check_modules(MBEDTLS REQUIRED mbedcrypto)
-    if(MBEDTLS_FOUND)
-        # Create imported target if not automatically created
-        if(NOT TARGET MbedTLS::mbedcrypto)
-            add_library(MbedTLS::mbedcrypto INTERFACE IMPORTED GLOBAL)
-            set_target_properties(MbedTLS::mbedcrypto PROPERTIES
-                INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${MBEDTLS_LIBRARIES}"
-                INTERFACE_LINK_DIRECTORIES "${MBEDTLS_LIBRARY_DIRS}"
-            )
-        endif()
+# ============================================================================
+# Fetch and Build MbedTLS
+# ============================================================================
+
+include(FetchContent)
+
+# 尝试先找系统安装的 mbedtls
+find_package(mbedcrypto QUIET)
+
+if(NOT TARGET mbedcrypto)
+    message(STATUS "System mbedtls not found, will fetch and build from source")
+    
+    FetchContent_Declare(
+        mbedtls
+        GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+        GIT_TAG v3.6.2
+        GIT_SHALLOW TRUE
+    )
+    
+    # 配置 mbedtls 构建选项
+    set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+    set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
+    
+    FetchContent_MakeAvailable(mbedtls)
+    
+    # 创建兼容的导入目标
+    if(NOT TARGET MbedTLS::mbedcrypto)
+        add_library(MbedTLS::mbedcrypto ALIAS mbedcrypto)
     endif()
-endblock()
+    
+    message(STATUS "mbedtls source dir: ${mbedtls_SOURCE_DIR}")
+    message(STATUS "mbedtls binary dir: ${mbedtls_BINARY_DIR}")
+else()
+    message(STATUS "Using system mbedtls")
+    if(NOT TARGET MbedTLS::mbedcrypto)
+        add_library(MbedTLS::mbedcrypto ALIAS mbedcrypto)
+    endif()
+endif()
 
 # ============================================================================
 # Installation Directories

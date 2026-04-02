@@ -84,8 +84,8 @@ static TEE_Result do_ecdsa_signature(TEE_OperationHandle operation, void *digest
 
 	rv_mbedtls = mbedtls_ecdsa_write_signature(
 	    operation->ctx.ecc.ctx, map_gp_pkcs_hash(operation->operation_info.algorithm), digest,
-	    digestLen, signature, *signatureLen, &sig_len, mbedtls_ctr_drbg_random,
-	    &ot_mbedtls_ctr_drbg);
+	    digestLen, signature, *signatureLen, &sig_len,
+	    mbedtls_ctr_drbg_random, &ot_mbedtls_ctr_drbg);
 
 	if (rv_mbedtls != 0) {
 		print_mbedtls_to_syslog(rv_mbedtls);
@@ -155,7 +155,8 @@ static TEE_Result do_rsa_pkcs_signature(TEE_OperationHandle operation, void *dig
 	}
 
 	rv_mbedtls = mbedtls_rsa_rsassa_pkcs1_v15_sign(
-	    operation->ctx.rsa.ctx, mbedtls_ctr_drbg_random, &ot_mbedtls_ctr_drbg,
+	    operation->ctx.rsa.ctx,
+	    mbedtls_ctr_drbg_random, &ot_mbedtls_ctr_drbg,
 	    map_gp_pkcs_hash(operation->operation_info.algorithm),
 	    get_alg_hash_lenght(operation->operation_info.algorithm), digest, signature);
 
@@ -200,8 +201,10 @@ static TEE_Result do_rsa_pkcs_verify(TEE_OperationHandle operation, void *digest
 	}
 
 	rv_mbedtls = mbedtls_rsa_rsassa_pkcs1_v15_verify(
-	    operation->ctx.rsa.ctx, map_gp_pkcs_hash(operation->operation_info.algorithm),
-	    digestLen, digest, signature);
+	    operation->ctx.rsa.ctx,
+	    map_gp_pkcs_hash(operation->operation_info.algorithm),
+	    get_alg_hash_lenght(operation->operation_info.algorithm),
+	    digest, signature);
 	if (rv_mbedtls != 0) {
 		print_mbedtls_to_syslog(rv_mbedtls);
 		OT_LOG_ERR("ERROR: Internal crypto error (RSA verify)");
@@ -320,9 +323,9 @@ static TEE_Result do_rsa_pkcs_decrypt(TEE_OperationHandle operation, void *srcDa
 		}
 
 		mbedtlsOlen = *destLen;
-		mbedtls_rsa_rsaes_oaep_decrypt(operation->ctx.rsa.ctx, mbedtls_ctr_drbg_random,
-					       &ot_mbedtls_ctr_drbg, NULL, 0, destLen, srcData,
-					       destData, mbedtlsOlen);
+		rv_mbedtls = mbedtls_rsa_rsaes_oaep_decrypt(operation->ctx.rsa.ctx, mbedtls_ctr_drbg_random,
+							    &ot_mbedtls_ctr_drbg, NULL, 0, destLen, srcData,
+							    destData, mbedtlsOlen);
 	}
 
 	if (rv_mbedtls != 0) {
