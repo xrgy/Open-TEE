@@ -178,6 +178,7 @@ if(NOT TARGET mbedcrypto)
         GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
         GIT_TAG v3.6.2
         GIT_SHALLOW TRUE
+        SOURCE_DIR "${CMAKE_SOURCE_DIR}/deps/mbedtls-src"
     )
     
     # 配置 mbedtls 构建选项
